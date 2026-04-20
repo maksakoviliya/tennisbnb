@@ -1,22 +1,26 @@
 services:
   app:
-    image: tennisbnb-backend
     build:
       context: ./backend
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "8000:80"
     volumes:
       - ./backend:/var/www/html
     environment:
-      - APP_ENV=local
-      - APP_DEBUG=true
+      - APP_ENV=production
+      - APP_DEBUG=false
       - DB_CONNECTION=mysql
       - DB_HOST=db
       - DB_PORT=3306
       - DB_DATABASE=tennisbnb
       - DB_USERNAME=tennisbnb
       - DB_PASSWORD=secret
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - tennisbnb
 
   db:
     image: mysql:8.0
@@ -28,16 +32,18 @@ services:
       - MYSQL_PASSWORD=secret
     volumes:
       - mysql_data:/var/lib/mysql
+      - ./docker/mysql.cnf:/etc/mysql/conf.d/custom.cnf
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "tennisbnb", "-psecret"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tennisbnb
 
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./backend:/var/www/html
-      - ./docker/nginx.conf:/etc/nginx/conf.d/default.conf
-    depends_on:
-      - app
+networks:
+  tennisbnb:
+    driver: bridge
 
 volumes:
   mysql_data:
